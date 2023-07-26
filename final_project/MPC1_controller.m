@@ -39,7 +39,7 @@ function [sys,x0,str,ts] = MPC1_controller(t,x,u,flag)
     Np=100; % predict horizon
     Nc=100; % control horizon
     Row=10;
-    T=0.02; % predict step time
+    T=0.01; % predict step time
 
     m=1807.2;
     a=1.18;
@@ -55,10 +55,10 @@ function [sys,x0,str,ts] = MPC1_controller(t,x,u,flag)
     kesi(3)=u(3);
     kesi(4)=u(4);
     kesi(5)=U;
-    q=[100,0,0,0;
+    q=[10000,0,0,0;
        0,1,0,0;
        0,0,1,0;
-       0,0,0,1]; % state cost function
+       0,0,0,10000]; % state cost function
     Q=kron(eye(Np),q);
     R=0*eye(Nc*Nu); % control cost function
     A2=[0,vx,1,0;
