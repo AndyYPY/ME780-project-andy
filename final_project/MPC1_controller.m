@@ -26,29 +26,28 @@ function [sys,x0,str,ts] = MPC1_controller(t,x,u,flag)
     str = [];
     ts  = [0.01 0];
     global U
-    U=[0];
+    U=0;
     
-    function sys=mdlUpdate(t,x,u)
+    function sys=mdlUpdate(~,x,~)
     
     sys = x;
     
-    function sys=mdlOutputs(t,x,u)
-    %% 定义全局变量
+    function sys=mdlOutputs(~,~,u)
     global A1 B1 u_piao U kesi
-    Nx=4;%状态量4个，横向误差，航向角误差，侧向速度误差，横摆角速度误差
-    Nu=1;%控制量1个前轮转角
-    Np=100;%预测步长50
-    Nc=80;%控制步长30
-    Row=10;%松弛因子
-    T=0.01;%采用时间0.01
-    %%车辆参数
-    m=1807.2;%整车质量
-    a=1.18;%质心到前轴的距离
-    b=1.77;%质心到后轴的距离
-    Iz=2687.1;%绕Z轴的转动惯量
-    k1=-110730;%前轴侧偏刚度
-    k2=-80188;%后轴侧偏刚度
-    %%控制器设计
+    Nx=4;
+    Nu=1;
+    Np=100; % predict horizon
+    Nc=100; % control horizon
+    Row=10;
+    T=0.02; % predict step time
+
+    m=1807.2;
+    a=1.18;
+    b=1.77;
+    Iz=2687.1;
+    k1=-110730;
+    k2=-80188;
+    
     vx=u(5);
     kesi=zeros(Nx+Nu,1);
     kesi(1)=u(1);
@@ -59,15 +58,15 @@ function [sys,x0,str,ts] = MPC1_controller(t,x,u,flag)
     q=[100,0,0,0;
        0,1,0,0;
        0,0,1,0;
-       0,0,0,1];
+       0,0,0,1]; % state cost function
     Q=kron(eye(Np),q);
-    R=eye(Nc*Nu);
+    R=0*eye(Nc*Nu); % control cost function
     A2=[0,vx,1,0;
        0,0,0,1;
        0,0,(k1+k2)/m/vx,(a*k1-b*k2)/m/vx-vx;
        0,0,(a*k1-b*k2)/Iz/vx,(a^2*k1+b^2*k2)/Iz/vx];
     B2=[0;0;-k1/m;-a*k1/Iz];
-    A1=A2*T+eye(Nx);%雅可比矩阵计算
+    A1=A2*T+eye(Nx);
     B1=B2*T;
     A_cell=cell(2,2);
     A_cell{1,1}=A1;
@@ -83,7 +82,7 @@ function [sys,x0,str,ts] = MPC1_controller(t,x,u,flag)
     C_cell{1,1}=eye(Nx);
     C_cell{1,2}=zeros(Nx,Nu);
     C=cell2mat(C_cell);
-    %% 预测时域矩阵升维
+    
     PHI_cell=cell(Np,1);
     for i=1:1:Np
         PHI_cell{i,1}=C*A^i;
@@ -111,7 +110,7 @@ function [sys,x0,str,ts] = MPC1_controller(t,x,u,flag)
     f_cell{1,1}=2*error'*Q*THETA;
     f_cell{1,2}=0;
     f=cell2mat(f_cell);
-    A_t=zeros(Nc,Nc);%工具人矩阵
+    A_t=zeros(Nc,Nc);
     for i=1:1:Nc
         for j=1:1:Nc
             if i>=j
@@ -141,12 +140,12 @@ function [sys,x0,str,ts] = MPC1_controller(t,x,u,flag)
     B_cons_cell{1,1}=Umax-Ut;
     B_cons_cell{2,1}=-Umin+Ut;
     B_cons=cell2mat(B_cons_cell);
-    lb=[Umin_dt];
-    ub=[Umax_dt];
-    %% 二次规划问题
+    lb=Umin_dt;
+    ub=Umax_dt;
+    
     options=optimset('Algorithm','interior-point-convex');
-    [X,fval,exitflag] =quadprog(H,f,A_cons,B_cons,[],[],lb,ub,[],options);
-    %% 赋值输出
+    [X,~,~] =quadprog(H,f,A_cons,B_cons,[],[],lb,ub,[],options);
+    
     u_piao=X(1);
     U=kesi(5)+u_piao;
     u_real=U;
